@@ -1,0 +1,739 @@
+openapi: 3.0.0
+info:
+  title: Course Management Platform API
+  version: 1.0.0
+  description: Comprehensive API for course management with multi-role support
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+  - url: https://api.courseplatform.com/v1
+    description: Production server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        statusCode:
+          type: integer
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, tutor, student]
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+
+    Course:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        thumbnailUrl:
+          type: string
+        contentType:
+          type: string
+          enum: [video, document, mixed]
+        status:
+          type: string
+          enum: [draft, published, archived]
+        tutorId:
+          type: string
+
+paths:
+  # ==========================================
+  # AUTHENTICATION
+  # ==========================================
+  /auth/register:
+    post:
+      summary: Register new user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, firstName, lastName, role]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                role:
+                  type: string
+                  enum: [student, tutor]
+      responses:
+        201:
+          description: User created successfully
+        400:
+          description: Invalid input
+
+  /auth/login:
+    post:
+      summary: Login user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        200:
+          description: Token refreshed
+
+  /auth/logout:
+    post:
+      summary: Logout user
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Logged out successfully
+
+  # ==========================================
+  # USERS
+  # ==========================================
+  /users:
+    get:
+      summary: Get all users (Admin only)
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [admin, tutor, student]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        200:
+          description: List of users
+
+  /users/{id}:
+    get:
+      summary: Get user by ID
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: User details
+
+    put:
+      summary: Update user
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                bio:
+                  type: string
+      responses:
+        200:
+          description: User updated
+
+    delete:
+      summary: Delete user (Admin only)
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        204:
+          description: User deleted
+
+  # ==========================================
+  # COURSES
+  # ==========================================
+  /courses:
+    get:
+      summary: Get all courses
+      tags: [Courses]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [draft, published, archived]
+        - in: query
+          name: contentType
+          schema:
+            type: string
+        - in: query
+          name: tutorId
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of courses
+
+    post:
+      summary: Create new course (Tutor only)
+      tags: [Courses]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, contentType]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                contentType:
+                  type: string
+                  enum: [video, document, mixed]
+                thumbnailUrl:
+                  type: string
+      responses:
+        201:
+          description: Course created
+
+  /courses/{id}:
+    get:
+      summary: Get course by ID
+      tags: [Courses]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Course details
+
+    put:
+      summary: Update course (Tutor only)
+      tags: [Courses]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Course updated
+
+    delete:
+      summary: Delete course (Tutor only)
+      tags: [Courses]
+      security:
+        - bearerAuth: []
+      responses:
+        204:
+          description: Course deleted
+
+  /courses/{id}/publish:
+    post:
+      summary: Publish course
+      tags: [Courses]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Course published
+
+  # ==========================================
+  # MODULES & LESSONS
+  # ==========================================
+  /courses/{courseId}/modules:
+    get:
+      summary: Get course modules
+      tags: [Modules]
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of modules
+
+    post:
+      summary: Create module
+      tags: [Modules]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, orderIndex]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                orderIndex:
+                  type: integer
+      responses:
+        201:
+          description: Module created
+
+  /modules/{moduleId}/lessons:
+    post:
+      summary: Create lesson
+      tags: [Lessons]
+      security:
+        - bearerAuth: []
+      responses:
+        201:
+          description: Lesson created
+
+  /lessons/{id}/videos:
+    post:
+      summary: Add video to lesson
+      tags: [Lessons]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        201:
+          description: Video uploaded
+
+  # ==========================================
+  # ENROLLMENTS
+  # ==========================================
+  /enrollments:
+    get:
+      summary: Get user enrollments
+      tags: [Enrollments]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of enrollments
+
+    post:
+      summary: Request enrollment
+      tags: [Enrollments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [courseId]
+              properties:
+                courseId:
+                  type: string
+      responses:
+        201:
+          description: Enrollment requested
+
+  /enrollments/{id}/approve:
+    post:
+      summary: Approve enrollment (Tutor/Admin)
+      tags: [Enrollments]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Enrollment approved
+
+  /enrollments/{id}/reject:
+    post:
+      summary: Reject enrollment (Tutor/Admin)
+      tags: [Enrollments]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Enrollment rejected
+
+  /enrollments/{enrollmentId}/progress:
+    get:
+      summary: Get enrollment progress
+      tags: [Enrollments]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Progress details
+
+  /enrollments/{enrollmentId}/lessons/{lessonId}/complete:
+    post:
+      summary: Mark lesson as complete
+      tags: [Enrollments]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Lesson marked complete
+
+  # ==========================================
+  # EXAMS
+  # ==========================================
+  /courses/{courseId}/exams:
+    get:
+      summary: Get course exams
+      tags: [Exams]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of exams
+
+    post:
+      summary: Create exam (Tutor only)
+      tags: [Exams]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                durationMinutes:
+                  type: integer
+                passingScore:
+                  type: number
+      responses:
+        201:
+          description: Exam created
+
+  /exams/{examId}/questions:
+    post:
+      summary: Add question to exam
+      tags: [Exams]
+      security:
+        - bearerAuth: []
+      responses:
+        201:
+          description: Question added
+
+  /exams/{examId}/submit:
+    post:
+      summary: Submit exam answers
+      tags: [Exams]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      questionId:
+                        type: string
+                      selectedOptionId:
+                        type: string
+                      answerText:
+                        type: string
+      responses:
+        201:
+          description: Exam submitted
+
+  /submissions/{id}/grade:
+    post:
+      summary: Grade submission (Tutor only)
+      tags: [Exams]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                score:
+                  type: number
+                feedback:
+                  type: string
+      responses:
+        200:
+          description: Submission graded
+
+  # ==========================================
+  # FORUM
+  # ==========================================
+  /forum/threads:
+    get:
+      summary: Get forum threads
+      tags: [Forum]
+      parameters:
+        - in: query
+          name: courseId
+          schema:
+            type: string
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of threads
+
+    post:
+      summary: Create thread
+      tags: [Forum]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                courseId:
+                  type: string
+                categoryId:
+                  type: string
+      responses:
+        201:
+          description: Thread created
+
+  /forum/threads/{id}/replies:
+    post:
+      summary: Reply to thread
+      tags: [Forum]
+      security:
+        - bearerAuth: []
+      responses:
+        201:
+          description: Reply added
+
+  /forum/threads/{id}/like:
+    post:
+      summary: Like thread
+      tags: [Forum]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Thread liked
+
+  # ==========================================
+  # ANNOUNCEMENTS
+  # ==========================================
+  /announcements:
+    get:
+      summary: Get announcements
+      tags: [Announcements]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: courseId
+          schema:
+            type: string
+        - in: query
+          name: isGlobal
+          schema:
+            type: boolean
+      responses:
+        200:
+          description: List of announcements
+
+    post:
+      summary: Create announcement
+      tags: [Announcements]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                courseId:
+                  type: string
+                isGlobal:
+                  type: boolean
+      responses:
+        201:
+          description: Announcement created
+
+  # ==========================================
+  # NOTIFICATIONS
+  # ==========================================
+  /notifications:
+    get:
+      summary: Get user notifications
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of notifications
+
+  /notifications/{id}/read:
+    post:
+      summary: Mark notification as read
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Notification marked as read
+
+  # ==========================================
+  # DASHBOARD
+  # ==========================================
+  /dashboard/student:
+    get:
+      summary: Get student dashboard
+      tags: [Dashboard]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Student dashboard data
+
+  /dashboard/tutor:
+    get:
+      summary: Get tutor dashboard
+      tags: [Dashboard]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Tutor dashboard data
+
+  /dashboard/admin:
+    get:
+      summary: Get admin dashboard
+      tags: [Dashboard]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Admin dashboard data

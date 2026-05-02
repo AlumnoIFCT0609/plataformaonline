@@ -1,0 +1,28 @@
+// ============================================
+// ARCHIVO 9: frontend/.gitignore
+// ============================================
+
+// Dependencies
+node_modules/
+
+// Next.js
+.next/
+out/
+
+// Environment variables
+//.env
+//.env.local
+//.env.production
+
+// Build outputs
+build/
+
+// Logs
+*.log
+
+// OS
+.DS_Store
+
+// IDE
+.vscode/
+.idea/
